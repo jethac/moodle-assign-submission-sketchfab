@@ -22,6 +22,8 @@
  * @copyright 2014 Jetha Chan
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+$string['apitoken'] = 'Sketchfab API token';
+$string['apitoken_help'] = 'Your personal Sketchfab API token.';
 $string['default'] = 'Enabled by default';
 $string['default_help'] = 'If set, this submission method will be enabled by default for all new assignments.';
 $string['enabled'] = 'Sketchfab assignments enabled';

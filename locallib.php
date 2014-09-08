@@ -35,7 +35,6 @@ class assign_submission_sketchfab extends assign_submission_plugin {
 		return get_string('pluginname', 'assignsubmission_sketchfab');
 	}
 
-
     /**
      * Add form elements to the submission form.
      *
@@ -59,6 +58,16 @@ class assign_submission_sketchfab extends assign_submission_plugin {
         );
         $mform->setType(
             'sketchfab_api_url',
+            PARAM_TEXT
+        );
+
+        $mform->addElement(
+            'text',
+            'sketchfab_api_token',
+            get_string('apitoken', 'assignsubmission_sketchfab')
+        );
+        $mform->setType(
+            'sketchfab_api_token',
             PARAM_TEXT
         );
 
