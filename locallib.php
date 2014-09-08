@@ -57,6 +57,10 @@ class assign_submission_sketchfab extends assign_submission_plugin {
                 'endpointurl'
             )
         );
+        $mform->setType(
+            'sketchfab_api_url',
+            PARAM_TEXT
+        );
 
         return true;
     }
