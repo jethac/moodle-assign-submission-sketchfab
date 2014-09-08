@@ -61,6 +61,7 @@ class assign_submission_sketchfab extends assign_submission_plugin {
             PARAM_TEXT
         );
 
+        // API token.
         $mform->addElement(
             'text',
             'sketchfab_api_token',
@@ -74,6 +75,13 @@ class assign_submission_sketchfab extends assign_submission_plugin {
             'sketchfab_api_token',
             'apitoken',
             'assignsubmission_sketchfab'
+        );
+        $mform->addRule(
+            'sketchfab_api_token',
+            get_string('apitoken_required', 'assignsubmission_sketchfab'),
+            'required',
+            '',
+            'client'
         );
 
         return true;

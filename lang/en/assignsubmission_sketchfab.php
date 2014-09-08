@@ -24,6 +24,7 @@
  */
 $string['apitoken'] = 'Sketchfab API token';
 $string['apitoken_help'] = 'Your personal Sketchfab API token.';
+$string['apitoken_required'] = 'Your API token is required in order to upload to Sketchfab.';
 $string['default'] = 'Enabled by default';
 $string['default_help'] = 'If set, this submission method will be enabled by default for all new assignments.';
 $string['enabled'] = 'Sketchfab assignments enabled';
