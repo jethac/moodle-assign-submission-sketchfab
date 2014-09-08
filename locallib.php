@@ -24,6 +24,8 @@
  */
 defined('MOODLE_INTERNAL') || die();
 
+require_once($CFG->libdir.'/../mod/assign/submission/file/locallib.php');
+
 class assign_submission_sketchfab extends assign_submission_plugin {
 
 	/** 
@@ -83,6 +85,20 @@ class assign_submission_sketchfab extends assign_submission_plugin {
             '',
             'client'
         );
+
+        return true;
+    }
+
+    public function save(stdClass $submission, stdClass $data) {
+        global $USER, $DB;
+
+
+        // Rely upon the files uploaded by the files manager; let's not
+        // reinvent the wheel.
+        $count = $this->count_files($submission->id, ASSIGNSUBMISSION_FILE_FILEAREA);
+
+        echo $OUTPUT->notification("derp: $count", "notifysuccess");
+
 
         return true;
     }
