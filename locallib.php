@@ -90,27 +90,38 @@ class assign_submission_sketchfab extends assign_submission_plugin {
     }
 
     protected function count_files($submissionid, $area) { 
-        $fs = get_file_storage();
-        $files = $fs->get_area_files($this->assignment->get_context()->id,
-                                     'assignsubmission_file',
-                                     $area,
-                                     $submissionid,
-                                     'id',
-                                     false);
 
         return count($files);
     }
 
 
     public function save(stdClass $submission, stdClass $data) {
-        global $USER, $DB;
+        global $USER, $DB, $OUTPUT;
 
-
-        // Rely upon the files uploaded by the files manager; let's not
+        // Rely upon the files uploaded by the mod_assign_submission_file; let's not
         // reinvent the wheel.
-        $count = $this->count_files($submission->id, ASSIGNSUBMISSION_FILE_FILEAREA);
+        $fs = get_file_storage();
+        $files = $fs->get_area_files($this->assignment->get_context()->id,
+                                     'assignsubmission_file',
+                                     ASSIGNSUBMISSION_FILE_FILEAREA,
+                                     $submission->id,
+                                     'id',
+                                     false);
+
+
+        $count = count($files);
 
         echo $OUTPUT->notification("derp: $count", "notifysuccess");
+
+        foreach ($files as $file) {
+            $result[$file->get_filename()] = $file;
+        }
+
+        ?>
+        <pre><?php var_dump($submission); ?></pre>
+        <hr />
+        <pre><?php var_dump($data); ?></pre>
+        <?php
 
 
         return true;
