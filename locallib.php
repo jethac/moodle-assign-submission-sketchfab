@@ -113,11 +113,14 @@ class assign_submission_sketchfab extends assign_submission_plugin {
 
         echo $OUTPUT->notification("derp: $count", "notifysuccess");
 
+        $result = array();
         foreach ($files as $file) {
             $result[$file->get_filename()] = $file;
         }
 
         ?>
+        <pre><?php var_dump($result); ?></pre>
+        <hr />
         <pre><?php var_dump($submission); ?></pre>
         <hr />
         <pre><?php var_dump($data); ?></pre>
