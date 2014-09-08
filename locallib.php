@@ -70,6 +70,11 @@ class assign_submission_sketchfab extends assign_submission_plugin {
             'sketchfab_api_token',
             PARAM_TEXT
         );
+        $mform->addHelpButton(
+            'sketchfab_api_token',
+            'apitoken',
+            'assignsubmission_sketchfab'
+        );
 
         return true;
     }
