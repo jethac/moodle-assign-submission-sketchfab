@@ -24,6 +24,8 @@
  */
 $string['default'] = 'Enabled by default';
 $string['default_help'] = 'If set, this submission method will be enabled by default for all new assignments.';
+$string['enabled'] = 'Sketchfab assignments enabled';
+$string['enabled_help'] = 'If enabled, students are able to submit 3D files using Sketchfab.';
 $string['endpointurl'] = 'API endpoint';
 $string['endpointurl_help'] = 'The default API endpoint.';
 $string['pluginname'] = 'Sketchfab submissions';
