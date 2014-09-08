@@ -26,4 +26,4 @@ $string['default'] = 'Enabled by default';
 $string['default_help'] = 'If set, this submission method will be enabled by default for all new assignments.';
 $string['endpointurl'] = 'API endpoint';
 $string['endpointurl_help'] = 'The default API endpoint.';
-$string['pluginname'] = 'Sketchfab assignment submissions';
+$string['pluginname'] = 'Sketchfab submissions';
