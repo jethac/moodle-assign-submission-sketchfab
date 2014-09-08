@@ -49,6 +49,8 @@ class assign_submission_sketchfab extends assign_submission_plugin {
         global $CFG, $COURSE, $PAGE, $OUTPUT;
 
         echo $OUTPUT->notification("Howdy doody!", "notifysuccess");
+
+        return true;
     }
 
 }
