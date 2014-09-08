@@ -48,7 +48,15 @@ class assign_submission_sketchfab extends assign_submission_plugin {
         global $CFG, $COURSE, $PAGE, $OUTPUT;
 
         $submissionid = $submission ? $submission->id : 0;
-
+        
+        $mform->addElement(
+            'hidden',
+            'sketchfab_api_url',
+            get_config(
+                'assignsubmission_sketchfab',
+                'endpointurl'
+            )
+        );
 
         return true;
     }
