@@ -89,6 +89,19 @@ class assign_submission_sketchfab extends assign_submission_plugin {
         return true;
     }
 
+    protected function count_files($submissionid, $area) { 
+        $fs = get_file_storage();
+        $files = $fs->get_area_files($this->assignment->get_context()->id,
+                                     'assignsubmission_file',
+                                     $area,
+                                     $submissionid,
+                                     'id',
+                                     false);
+
+        return count($files);
+    }
+
+
     public function save(stdClass $submission, stdClass $data) {
         global $USER, $DB;
 
