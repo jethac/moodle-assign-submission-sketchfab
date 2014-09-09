@@ -35,6 +35,6 @@ $settings->add(
 		'assignsubmission_sketchfab/endpointurl',
 		new lang_string('endpointurl', 'assignsubmission_sketchfab'),
 		new lang_string('endpointurl_help', 'assignsubmission_sketchfab'),
-		'http://api.sketchfab.com/v2/models'
+		'https://api.sketchfab.com/v2/models'
 	)
 );

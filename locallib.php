@@ -26,6 +26,8 @@ defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->libdir.'/../mod/assign/submission/file/locallib.php');
 
+define('SKETCHFAB_DB_TABLE', 'assignsubmission_sketchfab');
+
 class assign_submission_sketchfab extends assign_submission_plugin {
 
 	/** 
@@ -89,7 +91,7 @@ class assign_submission_sketchfab extends assign_submission_plugin {
         return true;
     }
 
-    protected function count_files($submissionid, $area) { 
+    protected function count_files($submissionid, $area) {
 
         return count($files);
     }
@@ -97,6 +99,10 @@ class assign_submission_sketchfab extends assign_submission_plugin {
 
     public function save(stdClass $submission, stdClass $data) {
         global $USER, $DB, $OUTPUT;
+
+        $assignmentid = $this->assignment->get_instance()->id;
+        $submissionid = $submission->id;
+
 
         // Rely upon the files uploaded by the mod_assign_submission_file; let's not
         // reinvent the wheel.
@@ -114,19 +120,70 @@ class assign_submission_sketchfab extends assign_submission_plugin {
         echo $OUTPUT->notification("derp: $count", "notifysuccess");
 
         $result = array();
+        $requests = array();
         $filenames = array();
+
+        $records = array();
+        $updaterecords = array();
         foreach ($files as $file) {
-            $result[$file->get_filename()] = $file;
-            $filenames[] = $file->get_filename();
+
+            $filenamenoext = pathinfo($file->get_filename())['filename'];
+
+            $sketchfab_data = array(
+                'token' => $data->sketchfab_api_token,
+                'modelFileName' => $file->get_filename(),
+                'modelFile' => $file,
+                'name' => $filenamenoext,
+                'description' => 'Automatically uploaded from Moodle.'
+            );
+            $requests[$file->get_filename()] = $sketchfab_data;
+
+            $curlrequest = new curl();
+            $curlsuccess = $curlrequest->post(
+                $data->sketchfab_api_url,
+                $sketchfab_data,
+                array(
+                    'CURLOPT_RETURNTRANSFER' => 1
+                )
+            );
+
+            $curlmetadata = new stdClass();
+            $curlmetadata->success = $curlsuccess;
+            $curlmetadata->errno = $curlrequest->errno;
+            $curlmetadata->error = $curlrequest->error;
+            $curlmetadata->response = $curlrequest->response;
+
+            $sketchfabUID = "";
+
+            // Did the request succeed?
+            if (!empty($curlsuccess)) {
+                // Parse JSON for the unique ID.
+                $sketchfabUID = json_decode($curlsuccess, true)["uid"];
+            }
+            $result[$file->get_filename()] = $sketchfabUID;
+
+            // Build a record and add it to a list.
+            $record = array(
+                'assignment' => $assignmentid,
+                'submission' => $submissionid,
+                'model' => $sketchfabUID
+            );
+            $records[] = $record;
         }
 
-        ?>
-        <pre><?php var_dump($filenames); ?></pre>
-        <hr />
-        <pre><?php var_dump($submission); ?></pre>
-        <hr />
-        <pre><?php var_dump($data); ?></pre>
-        <?php
+
+        // @todo: Stop making the baby robot Jesus cry.
+        // Delete existing rows for this user's submission.
+        $DB->delete_records(
+            SKETCHFAB_DB_TABLE,
+            array(
+                'assignment' => $assignmentid,
+                'submission' => $submissionid
+            )
+        );
+
+        // Add new rows for this user's submission.
+        $DB->insert_records(SKETCHFAB_DB_TABLE, $records);
 
 
         return true;
