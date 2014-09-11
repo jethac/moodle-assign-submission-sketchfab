@@ -25,10 +25,10 @@
  */
 defined('MOODLE_INTERNAL') || die();
 
-// This should be off by default, I'm pretty sure.                                                     
-$settings->add(new admin_setting_configcheckbox('assignsubmission_sketchfab/default',                                                    
-                   new lang_string('default', 'assignsubmission_sketchfab'),                                                             
-                   new lang_string('default_help', 'assignsubmission_sketchfab'), 0));           
+// This should be off by default, I'm pretty sure.
+$settings->add(new admin_setting_configcheckbox('assignsubmission_sketchfab/default',
+                   new lang_string('default', 'assignsubmission_sketchfab'),
+                   new lang_string('default_help', 'assignsubmission_sketchfab'), 0));
 
 $settings->add(
 	new admin_setting_configtext(

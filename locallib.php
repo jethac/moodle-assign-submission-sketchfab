@@ -13,7 +13,7 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
- 
+
 /**
  * Sketchfab Assignment Submission Plugin
  *
@@ -27,10 +27,12 @@ defined('MOODLE_INTERNAL') || die();
 require_once($CFG->libdir.'/../mod/assign/submission/file/locallib.php');
 
 define('SKETCHFAB_DB_TABLE', 'assignsubmission_sketchfab');
+define('SKETCHFAB_OEMBED_ENDPOINT', 'https://sketchfab.com/oembed');
+define('SKETCHFAB_MODELPAGE_URL', 'http://sketchfab.com/models');
 
 class assign_submission_sketchfab extends assign_submission_plugin {
 
-	/** 
+	/**
 	 * Returns the name of this plugin.
 	 *
 	 * @return string The name of this plugin.
@@ -51,7 +53,7 @@ class assign_submission_sketchfab extends assign_submission_plugin {
         global $CFG, $COURSE, $PAGE, $OUTPUT;
 
         $submissionid = $submission ? $submission->id : 0;
-        
+
         $mform->addElement(
             'hidden',
             'sketchfab_api_url',
@@ -94,6 +96,101 @@ class assign_submission_sketchfab extends assign_submission_plugin {
     protected function count_files($submissionid, $area) {
 
         return count($files);
+    }
+
+    public function is_empty(stdClass $submission) {
+        return false;
+    }
+
+
+    /**
+     * Display a count of the submission items and a link to a more detailed
+     * list.
+     *
+     * @param stdClass $submission
+     * @param bool $showviewlink Enable view link.
+     * @return string
+     */
+    public function view_summary(stdClass $submission, & $showviewlink) {
+        global $DB;
+
+        $showviewlink = true;
+
+        $count = $DB->count_records(
+            SKETCHFAB_DB_TABLE,
+            array(
+                'assignment' => $this->assignment->get_instance()->id,
+                'submission' => $submission->id
+            )
+        );
+        return get_string(
+            $count == 1 ? 'countitem_single' : 'countitem_plural',
+            'assignsubmission_sketchfab',
+            $count
+        );
+    }
+
+    /**
+     * Display a more detailed view of the submission items.
+     *
+     * @param stdClass $submission
+     * @return string
+     */
+    public function view(stdClass $submission) {
+        global $OUTPUT, $DB;
+
+        // Get the items.
+        $items = $DB->get_records(
+            SKETCHFAB_DB_TABLE,
+            array(
+                'assignment' => $this->assignment->get_instance()->id,
+                'submission' => $submission->id
+            )
+        );
+
+        $responses = array();
+        foreach ($items as $item) {
+
+            $curl = new curl();
+            // SKETCHFAB_OEMBED_ENDPOINT
+            $sketchfab_data = array(
+                'url' => SKETCHFAB_MODELPAGE_URL . '/' . $item->model,
+                'maxwidth' => 480,
+                'maxheight' => 360
+            );
+            $curlsuccess = $curl->get(
+                SKETCHFAB_OEMBED_ENDPOINT,
+                $sketchfab_data,
+                array(
+                    'CURLOPT_RETURNTRANSFER' => 1
+                )
+            );
+
+            $curlmetadata = new stdClass();
+            $curlmetadata->success = $curlsuccess;
+            $curlmetadata->errno = $curl->errno;
+            $curlmetadata->error = $curl->error;
+            $curlmetadata->response = $curl->response;
+
+            // Did the request succeed?
+            $oembediframe = "";
+            if (!empty($curlsuccess)) {
+                // Parse JSON for the unique ID.
+                $oembediframe = html_writer::tag(
+                    'div',
+                    json_decode($curlsuccess, true)["html"],
+                    array(
+                        'class' => 'sketchfab-oembed'
+                    )
+                );
+            }
+
+
+            $responses[] = $oembediframe;
+        }
+
+
+        return implode($responses);//'<pre>'.var_dump($responses).'</pre>';
     }
 
 
