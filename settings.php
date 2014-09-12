@@ -38,3 +38,20 @@ $settings->add(
 		'https://api.sketchfab.com/v2/models'
 	)
 );
+
+$settings->add(
+	new admin_setting_configtext(
+		'assignsubmission_sketchfab/defaultpolycount',
+		new lang_string('defaultpolycount', 'assignsubmission_sketchfab'),
+		new lang_string('defaultpolycount_help', 'assignsubmission_sketchfab'),
+		'500'
+	)
+);
+$settings->add(
+	new admin_setting_configtext(
+		'assignsubmission_sketchfab/defaultmatcount',
+		new lang_string('defaultmatcount', 'assignsubmission_sketchfab'),
+		new lang_string('defaultmatcount_help', 'assignsubmission_sketchfab'),
+		'1'
+	)
+);

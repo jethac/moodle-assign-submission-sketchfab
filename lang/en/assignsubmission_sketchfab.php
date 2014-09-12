@@ -22,6 +22,7 @@
  * @copyright 2014 Jetha Chan
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+$string['criteria'] = '3D criteria';
 $string['apitoken'] = 'Sketchfab API token';
 $string['apitoken_help'] = 'Your personal Sketchfab API token.';
 $string['apitoken_required'] = 'Your API token is required in order to upload to Sketchfab.';
@@ -29,8 +30,17 @@ $string['countitem_single'] = '{$a} item';
 $string['countitem_plural'] = '{$a} items';
 $string['default'] = 'Enabled by default';
 $string['default_help'] = 'If set, this submission method will be enabled by default for all new assignments.';
+$string['defaultpolycount'] = 'Default target polygon count.';
+$string['defaultpolycount_help'] = 'The polygon count new assignments will target by default.';
+$string['defaultmatcount'] = 'Default target material count.';
+$string['defaultmatcount_help'] = 'The number of materials new assignments will target by default.';
 $string['enabled'] = 'Sketchfab assignments enabled';
 $string['enabled_help'] = 'If enabled, students are able to submit 3D files using Sketchfab.';
 $string['endpointurl'] = 'API endpoint';
 $string['endpointurl_help'] = 'The default API endpoint.';
 $string['pluginname'] = 'Sketchfab submissions';
+$string['metamaterials'] = 'Materials';
+$string['metapolygons'] = 'Polygons';
+$string['metavertexes'] = 'Vertexes';
+$string['polylimit'] = 'Polygon count';
+$string['polylimit_help'] = 'The target polygon count for this assignment.';

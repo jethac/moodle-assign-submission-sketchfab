@@ -131,6 +131,80 @@ class assign_submission_sketchfab extends assign_submission_plugin {
     }
 
     /**
+     * Get new settings to add to the assignment settings page.
+     *
+     * @param MoodleQuickForm $mform The form to add elements to
+     * @return void
+     */
+    public function get_settings(MoodleQuickForm $mform) {
+        global $CFG, $COURSE;
+
+        $config_polycount = $this->get_config('polylimit');
+        $config_matcount = $this->get_config('matlimit');
+
+        $defaultpolycount = $config_polycount == 0 ? '' : $config_polycount;
+        $defaultmatcount = $config_matcount == 0 ? '' : $config_matcount;
+
+        // Create a header to group our 3d-related things together.
+        $mform->addElement(
+            'header', 'sketchfab_header', get_string('criteria', 'assignsubmission_sketchfab')
+        );
+
+        // Create a text box that can be enabled/disabled for polygon count limit.
+        $polylimitgrp = array();
+        $polylimitgrp[] = $mform->createElement('text', 'assignsubmission_sketchfab_polylimit', '', array('size' => '6'));
+        $polylimitgrp[] = $mform->createElement('advcheckbox', 'assignsubmission_sketchfab_polylimit_enabled',
+                '', get_string('enable'));
+        $mform->addGroup(
+            $polylimitgrp,
+            'assignsubmission_sketchfab_polylimit_group',
+            get_string('polylimit', 'assignsubmission_sketchfab'),
+            ' ',
+            false
+        );
+        $mform->addHelpButton('assignsubmission_sketchfab_polylimit_group',
+                              'polylimit',
+                              'assignsubmission_sketchfab');
+        $mform->disabledIf('assignsubmission_sketchfab_polylimit',
+                           'assignsubmission_sketchfab_polylimit_enabled',
+                           'notchecked');
+
+        // Add numeric rule to text field.
+        $polylimitgrprules = array();
+        $polylimitgrprules['assignsubmission_sketchfab_polylimit'][] = array(null, 'numeric', null, 'client');
+        $mform->addGroupRule('assignsubmission_sketchfab_polylimit_group', $polylimitgrprules);
+
+        // Rest of group setup.
+        $mform->setDefault('assignsubmission_sketchfab_polylimit', $defaultpolycount);
+        $mform->setDefault('assignsubmission_sketchfab_polylimit_enabled', $this->get_config('polylimitenabled'));
+        $mform->setType('assignsubmission_sketchfab_polylimit', PARAM_INT);
+        $mform->disabledIf('assignsubmission_sketchfab_polylimit_group',
+                           'assignsubmission_sketchfab_enabled',
+                           'notchecked');
+    }
+
+    /**
+     * Save settings.
+     *
+     * @param stdClass $data
+     * @return bool
+     */
+    public function save_settings(stdClass $data) {
+        global $CFG;
+        if (empty($data->assignsubmission_sketchfab_polylimit) || empty($data->assignsubmission_sketchfab_polylimit_enabled)) {
+            $polylimit = 0;
+            $polylimitenabled = 0;
+        } else {
+            $polylimit = $data->assignsubmission_sketchfab_polylimit;
+            $polylimitenabled = 1;
+        }
+        $this->set_config('polylimit', $polylimit);
+        $this->set_config('polylimitenabled', $polylimitenabled);
+
+        return true;
+    }
+
+    /**
      * Display a more detailed view of the submission items.
      *
      * @param stdClass $submission
@@ -153,24 +227,18 @@ class assign_submission_sketchfab extends assign_submission_plugin {
 
             $curl = new curl();
             // SKETCHFAB_OEMBED_ENDPOINT
-            $sketchfab_data = array(
-                'url' => SKETCHFAB_MODELPAGE_URL . '/' . $item->model,
-                'maxwidth' => 480,
-                'maxheight' => 360
-            );
             $curlsuccess = $curl->get(
                 SKETCHFAB_OEMBED_ENDPOINT,
-                $sketchfab_data,
+                array(
+                    'url' => SKETCHFAB_MODELPAGE_URL . '/' . $item->model,
+                    'maxwidth' => 480,
+                    'maxheight' => 360
+                ),
                 array(
                     'CURLOPT_RETURNTRANSFER' => 1
                 )
             );
 
-            $curlmetadata = new stdClass();
-            $curlmetadata->success = $curlsuccess;
-            $curlmetadata->errno = $curl->errno;
-            $curlmetadata->error = $curl->error;
-            $curlmetadata->response = $curl->response;
 
             // Did the request succeed?
             $oembediframe = "";
@@ -185,8 +253,85 @@ class assign_submission_sketchfab extends assign_submission_plugin {
                 );
             }
 
+            $modeldata = new stdClass();
+            $modeldata->iframe = $oembediframe;
 
-            $responses[] = $oembediframe;
+            // Query for model metadata.
+            $meta = $curl->get(
+                get_config(
+                    'assignsubmission_sketchfab',
+                    'endpointurl'
+                ) . '/' . $item->model
+            );
+            if (!empty($meta)) {
+                // Parse JSON for the metadata we care about.
+                $json = json_decode($meta, true);
+                //var_dump($json);
+                $modeldata->facecount = $json["faceCount"];
+                $modeldata->vertexcount = $json["vertexCount"];
+                $modeldata->matcount = count($json["options"]["materials"]);
+            }
+
+            $polylimitdata = "";
+            if(intval($this->get_config('polylimitenabled')) === 1) {
+                $target = $this->get_config('polylimit');
+                $quotient = 100.0 * (floatval($modeldata->facecount) / floatval($target) - 1.0);
+                $polylimitdata = html_writer::tag(
+                    'span',
+                    sprintf("%+0.2f%% (target: %d polygons)", $quotient, $target),
+                    array(
+                        'class' => 'quota ' . ($quotient > 0.0 ? 'above' : 'below')
+                    )
+                );
+            }
+
+            $metahtml = html_writer::start_tag('ul', array('class' => 'sketchfab-stats'));
+            $metahtml .= html_writer::tag(
+                'li',
+                html_writer::tag(
+                    'span',
+                    'Polygons' . html_writer::tag(
+                        'span',
+                        $modeldata->facecount,
+                        array('class' => 'value')
+                    ) . $polylimitdata,
+                    array('class' => 'label')
+                )
+            );
+            $metahtml .= html_writer::tag(
+                'li',
+                html_writer::tag(
+                    'span',
+                    'Vertexes' . html_writer::tag(
+                    'span',
+                    $modeldata->vertexcount,
+                    array('class' => 'value')
+                    ),
+                    array('class' => 'label')
+                )
+            );
+            $metahtml .= html_writer::tag(
+                'li',
+                html_writer::tag(
+                    'span',
+                    'Materials' . html_writer::tag(
+                        'span',
+                        $modeldata->matcount,
+                        array('class' => 'value')
+                    ),
+                    array('class' => 'label')
+                )
+            );
+            $metahtml .= html_writer::end_tag('ul');
+
+
+            $thishtml = html_writer::tag(
+                'div',
+                $modeldata->iframe . $metahtml,
+                array('class' => 'sketchfab-oembed-outer')
+            );
+
+            $responses[] = $thishtml;
         }
 
 
@@ -213,8 +358,6 @@ class assign_submission_sketchfab extends assign_submission_plugin {
 
 
         $count = count($files);
-
-        echo $OUTPUT->notification("derp: $count", "notifysuccess");
 
         $result = array();
         $requests = array();
