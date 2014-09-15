@@ -25,7 +25,7 @@
  */
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2014091002;
+$plugin->version   = 2014091003;
 $plugin->requires  = 2014050800;
 $plugin->component = 'assignsubmission_sketchfab';
 $plugin->maturity = MATURITY_STABLE;

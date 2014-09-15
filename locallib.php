@@ -139,18 +139,29 @@ class assign_submission_sketchfab extends assign_submission_plugin {
     public function get_settings(MoodleQuickForm $mform) {
         global $CFG, $COURSE;
 
-        $config_polycount = $this->get_config('polylimit');
-        $config_matcount = $this->get_config('matlimit');
+        // Get limits stored for this activity.
+        $assignmentpolycount = $this->get_config('polylimit');
+        $assignmentmatcount = $this->get_config('matlimit');
+        $assignmenttexsize = $this->get_config('texsize');
+        $assignmentallownpot = $this->get_config('allownpot');
 
-        $defaultpolycount = $config_polycount == 0 ? '' : $config_polycount;
-        $defaultmatcount = $config_matcount == 0 ? '' : $config_matcount;
+        // Get defaults.
+        $adminpolycount = get_config('assignsubmission_sketchfab', 'defaultpolycount');
+        $adminmatcount = get_config('assignsubmission_sketchfab', 'defaultmatcount');
+        $admintexsize = get_config('assignsubmission_sketchfab', 'defaulttexsize');
+        $adminallownpot = get_config('assignsubmission_sketchfab', 'defaultallownpot');
+
+        $polycount = $assignmentpolycount == 0 ? $adminpolycount : $assignmentpolycount;
+        $matcount = $assignmentmatcount == 0 ? $adminmatcount : $assignmentmatcount;
+        $texsize = $assignmenttexsize == 0 ? $admintexsize : $assignmenttexsize;
+        $allownpot = $assignmentallownpot == 0 ? $adminallownpot : $assignmentallownpot;
 
         // Create a header to group our 3d-related things together.
         $mform->addElement(
             'header', 'sketchfab_header', get_string('criteria', 'assignsubmission_sketchfab')
         );
 
-        // Create a text box that can be enabled/disabled for polygon count limit.
+        // Polycount limit.
         $polylimitgrp = array();
         $polylimitgrp[] = $mform->createElement('text', 'assignsubmission_sketchfab_polylimit', '', array('size' => '6'));
         $polylimitgrp[] = $mform->createElement('advcheckbox', 'assignsubmission_sketchfab_polylimit_enabled',
@@ -169,18 +180,82 @@ class assign_submission_sketchfab extends assign_submission_plugin {
                            'assignsubmission_sketchfab_polylimit_enabled',
                            'notchecked');
 
-        // Add numeric rule to text field.
+        // Material count limit.
+        $matlimitgrp = array();
+        $matlimitgrp[] = $mform->createElement('text', 'assignsubmission_sketchfab_matlimit', '', array('size' => '6'));
+        $matlimitgrp[] = $mform->createElement('advcheckbox', 'assignsubmission_sketchfab_matlimit_enabled',
+                '', get_string('enable'));
+        $mform->addGroup(
+            $matlimitgrp,
+            'assignsubmission_sketchfab_matlimit_group',
+            get_string('matlimit', 'assignsubmission_sketchfab'),
+            ' ',
+            false
+        );
+        $mform->addHelpButton('assignsubmission_sketchfab_matlimit_group',
+                              'matlimit',
+                              'assignsubmission_sketchfab');
+        $mform->disabledIf('assignsubmission_sketchfab_matlimit',
+                           'assignsubmission_sketchfab_matlimit_enabled',
+                           'notchecked');
+
+        // Texture size.
+        $texsizegrp = array();
+        $texsizegrp[] = $mform->createElement('text', 'assignsubmission_sketchfab_texsize', '', array('size' => '6'));
+        $texsizegrp[] = $mform->createElement('advcheckbox', 'assignsubmission_sketchfab_texsize_enabled',
+                '', get_string('enable'));
+        $mform->addGroup(
+            $texsizegrp,
+            'assignsubmission_sketchfab_texsize_group',
+            get_string('texsize', 'assignsubmission_sketchfab'),
+            ' ',
+            false
+        );
+        $mform->addHelpButton('assignsubmission_sketchfab_texsize_group',
+                              'texsize',
+                              'assignsubmission_sketchfab');
+        $mform->disabledIf('assignsubmission_sketchfab_texsize',
+                           'assignsubmission_sketchfab_texsize_enabled',
+                           'notchecked');
+
+        // Allow NPOT?
+        $mform->addElement('advcheckbox', 'assignsubmission_sketchfab_allownpot', get_string('allownpot', 'assignsubmission_sketchfab'));
+        $mform->addHelpButton('assignsubmission_sketchfab_allownpot',
+                              'allownpot',
+                              'assignsubmission_sketchfab');
+
+        // Add numeric rule to text fields.
         $polylimitgrprules = array();
         $polylimitgrprules['assignsubmission_sketchfab_polylimit'][] = array(null, 'numeric', null, 'client');
         $mform->addGroupRule('assignsubmission_sketchfab_polylimit_group', $polylimitgrprules);
+        $matlimitgrprules = array();
+        $matlimitgrprules['assignsubmission_sketchfab_matlimit'][] = array(null, 'numeric', null, 'client');
+        $mform->addGroupRule('assignsubmission_sketchfab_matlimit_group', $polylimitgrprules);
+        $texsizegrprules = array();
+        $texsizegrprules['assignsubmission_sketchfab_texsize'][] = array(null, 'numeric', null, 'client');
+        $mform->addGroupRule('assignsubmission_sketchfab_texsize_group', $texsizegrprules);
 
         // Rest of group setup.
-        $mform->setDefault('assignsubmission_sketchfab_polylimit', $defaultpolycount);
+        $mform->setDefault('assignsubmission_sketchfab_polylimit', $polycount);
         $mform->setDefault('assignsubmission_sketchfab_polylimit_enabled', $this->get_config('polylimitenabled'));
         $mform->setType('assignsubmission_sketchfab_polylimit', PARAM_INT);
         $mform->disabledIf('assignsubmission_sketchfab_polylimit_group',
                            'assignsubmission_sketchfab_enabled',
                            'notchecked');
+        $mform->setDefault('assignsubmission_sketchfab_matlimit', $matcount);
+        $mform->setDefault('assignsubmission_sketchfab_matlimit_enabled', $this->get_config('matlimitenabled'));
+        $mform->setType('assignsubmission_sketchfab_matlimit', PARAM_INT);
+        $mform->disabledIf('assignsubmission_sketchfab_matlimit_group',
+                           'assignsubmission_sketchfab_enabled',
+                           'notchecked');
+        $mform->setDefault('assignsubmission_sketchfab_texsize', $texsize);
+        $mform->setDefault('assignsubmission_sketchfab_texsize_enabled', $this->get_config('texsizeenabled'));
+        $mform->setType('assignsubmission_sketchfab_texsize', PARAM_INT);
+        $mform->disabledIf('assignsubmission_sketchfab_texsize_group',
+                           'assignsubmission_sketchfab_enabled',
+                           'notchecked');
+
+        $mform->setDefault('assignsubmission_sketchfab_allownpot', $this->get_config('allownpot'));
     }
 
     /**
@@ -198,9 +273,27 @@ class assign_submission_sketchfab extends assign_submission_plugin {
             $polylimit = $data->assignsubmission_sketchfab_polylimit;
             $polylimitenabled = 1;
         }
+        if (empty($data->assignsubmission_sketchfab_matlimit) || empty($data->assignsubmission_sketchfab_matlimit_enabled)) {
+            $matlimit = 0;
+            $matlimitenabled = 0;
+        } else {
+            $matlimit = $data->assignsubmission_sketchfab_matlimit;
+            $matlimitenabled = 1;
+        }
+        if (empty($data->assignsubmission_sketchfab_texsize) || empty($data->assignsubmission_sketchfab_texsize_enabled)) {
+            $texsize = 0;
+            $texsizeenabled = 0;
+        } else {
+            $texsize = $data->assignsubmission_sketchfab_texsize;
+            $texsizeenabled = 1;
+        }
         $this->set_config('polylimit', $polylimit);
         $this->set_config('polylimitenabled', $polylimitenabled);
-
+        $this->set_config('matlimit', $matlimit);
+        $this->set_config('matlimitenabled', $matlimitenabled);
+        $this->set_config('texsize', $texsize);
+        $this->set_config('texsizeenabled', $texsizeenabled);
+        $this->set_config('allownpot', $data->assignsubmission_sketchfab_allownpot);
         return true;
     }
 

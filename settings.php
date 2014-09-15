@@ -55,3 +55,19 @@ $settings->add(
 		'1'
 	)
 );
+$settings->add(
+	new admin_setting_configtext(
+		'assignsubmission_sketchfab/defaulttexsize',
+		new lang_string('defaulttexsize', 'assignsubmission_sketchfab'),
+		new lang_string('defaulttexsize_help', 'assignsubmission_sketchfab'),
+		'1024'
+	)
+);
+$settings->add(
+	new admin_setting_configcheckbox(
+		'assignsubmission_sketchfab/defaultallownpot',
+		new lang_string('defaultallownpot', 'assignsubmission_sketchfab'),
+		new lang_string('defaultallownpot_help', 'assignsubmission_sketchfab'),
+		'0'
+	)
+);
