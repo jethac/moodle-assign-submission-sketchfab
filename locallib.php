@@ -298,13 +298,13 @@ class assign_submission_sketchfab extends assign_submission_plugin {
     }
 
     /**
-     * Display a more detailed view of the submission items.
+     * Talk to Sketchfab, get a bunch of objects back ready for embedding.
      *
      * @param stdClass $submission
-     * @return string
+     * return array An array of stdClasses, ready for embedding.
      */
-    public function view(stdClass $submission) {
-        global $OUTPUT, $DB;
+    private function get_models(stdClass $submission) {
+        global $DB;
 
         // Get the items.
         $items = $DB->get_records(
@@ -315,112 +315,270 @@ class assign_submission_sketchfab extends assign_submission_plugin {
             )
         );
 
-        $responses = array();
+        // Create an empty array to populate with models.
+        $models = array();
+
+        // Create an instance of the Moodle cURL class to use.
+        $curl = new curl();
+
+        // Iterate over each item then make the three cURL requests
+        // that we'll need for full metadata.
         foreach ($items as $item) {
 
-            $curl = new curl();
-            // SKETCHFAB_OEMBED_ENDPOINT
-            $curlsuccess = $curl->get(
+            // Create an empty stdClass.
+            $thismodel = new stdClass();
+
+            // 1. OEMBED
+            $oembed = $curl->get(
                 SKETCHFAB_OEMBED_ENDPOINT,
                 array(
-                    'url' => SKETCHFAB_MODELPAGE_URL . '/' . $item->model,
-                    'maxwidth' => 480,
-                    'maxheight' => 360
+                    'url' => SKETCHFAB_MODELPAGE_URL . '/' . $item->model
                 ),
                 array(
                     'CURLOPT_RETURNTRANSFER' => 1
                 )
             );
-
-
-            // Did the request succeed?
-            $oembediframe = "";
-            if (!empty($curlsuccess)) {
-                // Parse JSON for the unique ID.
-                $oembediframe = html_writer::tag(
+            if (!empty($oembed)) {
+                $thismodel->oembed = html_writer::tag(
                     'div',
-                    json_decode($curlsuccess, true)["html"],
+                    json_decode($oembed, true)["html"],
                     array(
                         'class' => 'sketchfab-oembed'
                     )
                 );
             }
 
-            $modeldata = new stdClass();
-            $modeldata->iframe = $oembediframe;
-
-            // Query for model metadata.
-            $meta = $curl->get(
-                get_config(
-                    'assignsubmission_sketchfab',
-                    'endpointurl'
-                ) . '/' . $item->model
-            );
+            // 2. METADATA
+            $metaurl = get_config('assignsubmission_sketchfab', 'endpointurl') . '/' . $item->model;
+            $meta = $curl->get($metaurl);
             if (!empty($meta)) {
                 // Parse JSON for the metadata we care about.
                 $json = json_decode($meta, true);
-                //var_dump($json);
-                $modeldata->facecount = $json["faceCount"];
-                $modeldata->vertexcount = $json["vertexCount"];
-                $modeldata->matcount = count($json["options"]["materials"]);
+                $thismodel->facecount = $json["faceCount"];
+                $thismodel->vertexcount = $json["vertexCount"];
+                $thismodel->matcount = count($json["options"]["materials"]);
             }
 
-            $polylimitdata = "";
-            if(intval($this->get_config('polylimitenabled')) === 1) {
-                $target = $this->get_config('polylimit');
-                $quotient = 100.0 * (floatval($modeldata->facecount) / floatval($target) - 1.0);
-                $polylimitdata = html_writer::tag(
+            // 3. TEXTURE METADATA
+            $metaurl .= '/textures';
+            $meta = $curl->get($metaurl);
+            $texturedata = array();
+            if (!empty($meta)) {
+                // Parse JSON for texture metadata.
+                $json = json_decode($meta, true);
+                foreach ($json['results'] as $result) {
+                    $thistex = array();
+
+                    // Image name.
+                    $thistex['name'] = $result['name'];
+
+                    // Dimensions.
+                    $h = $result['images'][0]['height'];
+                    $w = $result['images'][0]['width'];
+                    $thistex['h'] = $h;
+                    $thistex['w'] = $w;
+
+                    // Largest image dimension.
+                    $largestdimension = intval($h);
+                    if ($largestdimension < intval($w)) {
+                        $largestdimension = intval($w);
+                    }
+                    $thistex['largestdimension'] = $largestdimension;
+
+                    // Image aspect ratio.
+                    $aspectratio = $h / $w;
+                    $thistex['aspectratio'] = $aspectratio;
+
+                    // Image POT.
+                    $isPOT = ($largestdimension & ($largestdimension - 1)) == 0;
+                    $thistex['poweroftwo'] = $isPOT;
+
+                    // Image URL.
+                    $thistex['url'] = $result['images'][0]['url'];
+
+                    $texturedata[] = $thistex;
+                }
+            }
+            $thismodel->textures = $texturedata;
+            $thismodel->texcount = count($texturedata);
+
+            // Push the model onto the end of the array.
+            $models[] = $thismodel;
+
+        }
+
+
+        return $models;
+    }
+
+    /**
+     * Display a more detailed view of the submission items.
+     *
+     * @param stdClass $submission
+     * @return string
+     */
+    public function view(stdClass $submission) {
+        global $OUTPUT, $DB;
+
+        // Get the items.
+        $items = $this->get_models($submission);
+
+        // Build the html.
+        $responses = array();
+
+        foreach ($items as $item) {
+
+            // Output metadata tags.
+            $metahtml = html_writer::start_tag('table', array('class' => 'sketchfab-stats table table-bordered table-striped'));
+
+            // Polygons.
+            $metahtml .= html_writer::start_tag('tr');
+            $metahtml .= html_writer::tag(
+                'th',
+                get_string('metapolygons', 'assignsubmission_sketchfab')
+            );
+            $metahtml .= html_writer::tag(
+                'td',
+                html_writer::tag(
                     'span',
-                    sprintf("%+0.2f%% (target: %d polygons)", $quotient, $target),
-                    array(
-                        'class' => 'quota ' . ($quotient > 0.0 ? 'above' : 'below')
-                    )
+                    $item->facecount,
+                    array('class' => 'value')
+                ) .
+                $this->build_meta_label(
+                    $item->facecount,
+                    intval($this->get_config('polylimitenabled')) === 1,
+                    $this->get_config('polylimit')
+                )
+            );
+            $metahtml .= html_writer::end_tag('tr');
+
+            // Vertexes.
+            $metahtml .= html_writer::start_tag('tr');
+            $metahtml .= html_writer::tag(
+                'th',
+                get_string('metavertexes', 'assignsubmission_sketchfab')
+            );
+            $metahtml .= html_writer::tag(
+                'td',
+                html_writer::tag(
+                    'span',
+                    $item->vertexcount,
+                    array('class' => 'value')
+                )
+            );
+            $metahtml .= html_writer::end_tag('tr');
+
+            // Materials.
+            $metahtml .= html_writer::start_tag('tr');
+            $metahtml .= html_writer::tag(
+                'th',
+                get_string('metamaterials', 'assignsubmission_sketchfab'),
+                array(
+                    'rowspan' => $item->matcount + 1
+                )
+            );
+
+            $matinner = $item->matcount;
+            $usematcount = intval($item->matcount) > 0;
+            if ($usematcount) {
+                $matinner .= $this->build_meta_label(
+                    $item->matcount,
+                    intval($this->get_config('matlimitenabled')) === 1,
+                    $this->get_config('matlimit')
                 );
             }
 
-            $metahtml = html_writer::start_tag('ul', array('class' => 'sketchfab-stats'));
             $metahtml .= html_writer::tag(
-                'li',
+                'td',
                 html_writer::tag(
                     'span',
-                    'Polygons' . html_writer::tag(
-                        'span',
-                        $modeldata->facecount,
-                        array('class' => 'value')
-                    ) . $polylimitdata,
-                    array('class' => 'label')
-                )
-            );
-            $metahtml .= html_writer::tag(
-                'li',
-                html_writer::tag(
-                    'span',
-                    'Vertexes' . html_writer::tag(
-                    'span',
-                    $modeldata->vertexcount,
+                    $item->matcount,
                     array('class' => 'value')
-                    ),
-                    array('class' => 'label')
                 )
             );
+            $metahtml .= html_writer::end_tag('tr');
+
+            // Textures.
+            $metahtml .= html_writer::start_tag('tr');
             $metahtml .= html_writer::tag(
-                'li',
+                'th',
+                get_string('metatextures', 'assignsubmission_sketchfab'),
+                array(
+                    'rowspan' => $item->texcount + 1
+                )
+            );
+
+            $texinner = $item->texcount;
+            if (!$usematcount) {
+                $texinner .= $this->build_meta_label(
+                    $item->texcount,
+                    intval($this->get_config('matlimitenabled')) === 1,
+                    $this->get_config('matlimit')
+                );
+            }
+
+            $metahtml .= html_writer::tag(
+                'td',
                 html_writer::tag(
                     'span',
-                    'Materials' . html_writer::tag(
-                        'span',
-                        $modeldata->matcount,
-                        array('class' => 'value')
-                    ),
-                    array('class' => 'label')
+                    $texinner,
+                    array('class' => 'value')
                 )
             );
-            $metahtml .= html_writer::end_tag('ul');
+            $metahtml .= html_writer::end_tag('tr');
 
+            $allownpot = intval($this->get_config('allownpot')) === 1;
+            $texsizeenabled = intval($this->get_config('texsizeenabled')) === 1;
+            $texsizelimit = intval($this->get_config('texsize'));
+            foreach ($item->textures as $key => $tex) {
+                $metahtml .= html_writer::start_tag('tr');
+
+                $inner = html_writer::tag(
+                    'a',
+                    $tex['name'],
+                    array(
+                        'href' => $tex['url']
+                    )
+                );
+                $inner .= " ($tex[w]x$tex[h])";
+
+                $inner .= html_writer::start_tag('div', array('class' => 'flags'));
+
+                // If texture size is restricted, show a flag as to whether its
+                // size is over the limit.
+                if (!$texsizeenabled) {
+                    $inner .= $this->build_meta_label_boolean(
+                        get_string("texsizegood", "assignsubmission_sketchfab"),
+                        get_string("texsizebad", "assignsubmission_sketchfab"),
+                        $tex['largestdimension'] <= $texsizelimit
+                    );
+                }
+
+                // If NPOT textures are not allowed, show a flag as to whether
+                // or not this texture is POT.
+                if (!$allownpot) {
+                    $inner .= $this->build_meta_label_boolean("POT", "NPOT", $tex['poweroftwo']);
+                }
+
+                $inner .= html_writer::end_tag('div');
+
+                $metahtml .= html_writer::tag(
+                    'td',
+                    html_writer::tag(
+                        'small',
+                        $inner,
+                        array('class' => 'value')
+                    )
+                );
+                $metahtml .= html_writer::end_tag('tr');
+            }
+
+
+            $metahtml .= html_writer::end_tag('table');
 
             $thishtml = html_writer::tag(
                 'div',
-                $modeldata->iframe . $metahtml,
+                $item->oembed . $metahtml,
                 array('class' => 'sketchfab-oembed-outer')
             );
 
@@ -428,10 +586,77 @@ class assign_submission_sketchfab extends assign_submission_plugin {
         }
 
 
-        return implode($responses);//'<pre>'.var_dump($responses).'</pre>';
+        return implode($responses);
     }
 
 
+    /**
+     * Build a model metadata label.
+     *
+     * @param string $quantity The quantity to display.
+     * @param bool $limited Whether a limit is enforced on the quantity.
+     * @param string $limit The enforced limit, as a floating-point value passed as a string.
+     * @return string An HTML fragment.
+     */
+    private function build_meta_label($quantity, $limited = false, $limit = 0) {
+
+        $label = "";
+
+        $metatagclasses = 'label';
+        if ($limited) {
+
+            $quotient = 100.0 * (floatval($quantity) / floatval($limit) - 1.0);
+            $metatagclasses .= ($quotient > 0.0 ? ' label-important' : ' label-success');
+
+            $quotientstring = format_float($quotient, 2);
+            if ($quotientstring[0] != '-') {
+                $quotientstring = '+' . $quotientstring;
+            }
+            $quotientstring .= '%';
+
+            $a = new stdClass();
+            $a->value = $quotientstring;
+            $a->target = $limit;
+
+            $label .= get_string('quotientdisplay', 'assignsubmission_sketchfab', $a);
+        }
+
+        $rval = html_writer::tag(
+                'span',
+                $label,
+                array(
+                    'class' => $metatagclasses
+                )
+            );
+
+        return $rval;
+    }
+
+    private function build_meta_label_boolean($label_good, $label_bad, $okay = false) {
+
+
+        $label = $okay? $label_good : $label_bad;
+        $okayclass = $okay? 'icon-ok' : 'icon-remove';
+        $labelclasses = 'label' . ($okay ? ' label-success' : ' label-important');
+
+        $rval = html_writer::tag(
+            'span',
+            '<i class="' . $okayclass . '"></i> '  . $label,
+            array(
+                'class' => $labelclasses
+            )
+        );
+
+        return $rval;
+    }
+
+    /**
+     * Process uploaded files and upload them to Sketchfab.
+     *
+     * @param stdClass $submission
+     * @param stdClass $data
+     * @return bool
+     */
     public function save(stdClass $submission, stdClass $data) {
         global $USER, $DB, $OUTPUT;
 
