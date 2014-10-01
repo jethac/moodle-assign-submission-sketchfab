@@ -19,7 +19,7 @@ A Sketchfab (http://www.sketchfab.com) submission plugin for Moodle 2.7+, allowi
 -- This plugin requires that file uploading be enabled.
 - Note that there is a new section of options for the assignment, labeled as 3D criteria. Leave them alone for now.
 - Create an account at Sketchfab (http://www.sketchfab.com) and make a note of your API key (available at https://sketchfab.com/settings/password once you've logged in).
-- As a student, submit the attached file, along with your API key.
+- As a student, submit a file (e.g. http://puu.sh/bVtae/7aa8217c43.zip ), along with your API key.
  - The API key is never stored, as storing it would give the educational institution full read/write access over the user's Sketchfab account.
 - As a teacher, view the student's submission. Observe that there is now a section labeled Sketchfab submissions that is expandable; expand it to show the viewer.
 - Edit the settings for the assignment and turn on texture size restrictions. Set the texture size to be 512.
